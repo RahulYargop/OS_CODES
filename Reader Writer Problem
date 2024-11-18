@@ -1,48 +1,62 @@
-import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.Condition;
 
-class ReaderWriter {
-    private int readCount = 0;
-    private int sharedData = 0;
-    private final ReentrantLock lock = new ReentrantLock();
-    private final Condition writeCondition = lock.newCondition();
+class ReaderWriterProblem {
+    private int readers = 0;
+    private Lock lock = new ReentrantLock();
+    private Condition canWrite = lock.newCondition();
+    private boolean writing = false;
 
-    public void read(int readerId) throws InterruptedException {
+    // Reader enters
+    public void startReading() throws InterruptedException {
         lock.lock();
         try {
-            readCount++;
-            if (readCount == 1) {
-                writeCondition.await();
+            while (writing) {
+                canWrite.await();
             }
+            readers++;
+            System.out.println("Reader " + readers + " starts reading.");
         } finally {
             lock.unlock();
         }
+    }
 
-        System.out.println("Reader " + readerId + ": Reading the shared data: " + sharedData);
-        Thread.sleep(1000);
-
+    // Reader exits
+    public void stopReading() {
         lock.lock();
         try {
-            readCount--;
-            if (readCount == 0) {
-                writeCondition.signal();
+            System.out.println("Reader " + readers + " stops reading.");
+            readers--;
+            if (readers == 0) {
+                canWrite.signal();
             }
         } finally {
             lock.unlock();
         }
     }
 
-    public void write(int writerId) throws InterruptedException {
+    // Writer enters
+    public void startWriting() throws InterruptedException {
         lock.lock();
         try {
-            while (readCount > 0) {
-                writeCondition.await();
+            while (readers > 0 || writing) {
+                canWrite.await();
             }
+            writing = true;
+            System.out.println("Writer starts writing.");
+        } finally {
+            lock.unlock();
+        }
+    }
 
-            sharedData++;
-            System.out.println("Writer " + writerId + ": Writing to the shared data. New value: " + sharedData);
-            Thread.sleep(1000);
-            writeCondition.signalAll();
+    // Writer exits
+    public void stopWriting() {
+        lock.lock();
+        try {
+            System.out.println("Writer stops writing.");
+            writing = false;
+            canWrite.signalAll();
         } finally {
             lock.unlock();
         }
@@ -50,71 +64,54 @@ class ReaderWriter {
 }
 
 class Reader implements Runnable {
-    private final ReaderWriter readerWriter;
-    private final int id;
+    private ReaderWriterProblem problem;
 
-    public Reader(ReaderWriter readerWriter, int id) {
-        this.readerWriter = readerWriter;
-        this.id = id;
+    public Reader(ReaderWriterProblem problem) {
+        this.problem = problem;
     }
 
+    @Override
     public void run() {
         try {
-            readerWriter.read(id);
+            problem.startReading();
+            Thread.sleep(1000); // Simulate reading time
+            problem.stopReading();
         } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+            e.printStackTrace();
         }
     }
 }
 
 class Writer implements Runnable {
-    private final ReaderWriter readerWriter;
-    private final int id;
+    private ReaderWriterProblem problem;
 
-    public Writer(ReaderWriter readerWriter, int id) {
-        this.readerWriter = readerWriter;
-        this.id = id;
+    public Writer(ReaderWriterProblem problem) {
+        this.problem = problem;
     }
 
+    @Override
     public void run() {
         try {
-            readerWriter.write(id);
+            problem.startWriting();
+            Thread.sleep(2000); // Simulate writing time
+            problem.stopWriting();
         } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+            e.printStackTrace();
         }
     }
 }
 
-public class Main {
+public class ReaderWriterMutexDemo {
     public static void main(String[] args) {
-        ReaderWriter readerWriter = new ReaderWriter();
-        Thread[] readers = new Thread[5];
-        Thread[] writers = new Thread[3];
+        ReaderWriterProblem problem = new ReaderWriterProblem();
 
-        for (int i = 0; i < 5; i++) {
-            readers[i] = new Thread(new Reader(readerWriter, i + 1));
-            readers[i].start();
-        }
+        // Create threads for readers and writers
+        Thread reader1 = new Thread(new Reader(problem));
+        Thread reader2 = new Thread(new Reader(problem));
+        Thread writer1 = new Thread(new Writer(problem));
 
-        for (int i = 0; i < 3; i++) {
-            writers[i] = new Thread(new Writer(readerWriter, i + 1));
-            writers[i].start();
-        }
-
-        for (Thread reader : readers) {
-            try {
-                reader.join();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        }
-
-        for (Thread writer : writers) {
-            try {
-                writer.join();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        }
+        reader1.start();
+        reader2.start();
+        writer1.start();
     }
 }
