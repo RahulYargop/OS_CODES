@@ -23,3 +23,134 @@ class Fcfs{
         }
     }
 }
+
+//SJF
+import java.util.*;
+public class sjf{
+    public static void main(String[] args) {
+        int[] AT = {0,1,2,3,4,5};
+        int[] BT = {7,5,3,1,2,1};
+        int n = AT.length;
+        int[] CT = new int[n];
+        int[] TAT = new int[n];
+        int[] WT = new int[n];
+
+        Integer[] pid = new Integer[n];
+        for(int i=0;i<n;i++){
+            pid[i] = i+1;
+        }
+        Arrays.sort(pid,Comparator.comparingInt(i->AT[i-1]));
+        boolean[]  completed = new boolean[n];
+        int currentTime = 0;
+        for(int i=0;i<n;i++){
+            int minBT= Integer.MAX_VALUE;
+            int index =-1;
+
+            for(int j=0;j<n;j++){
+                if(!completed[j] && BT[j]<minBT && AT[j]<=currentTime){
+                    minBT = BT[j];
+                    index = j;
+                }
+            }
+            if(index == -1){
+                currentTime++;
+                index--;
+                continue;
+            }
+
+            CT[index] = currentTime + BT[index];
+            currentTime =CT[index];
+            completed[index] =true;
+        }
+        for(int i=0;i<n;i++){
+            TAT[i] = CT[i]-AT[i];
+            WT[i] = TAT[i] - BT[i];
+        }
+        System.out.printf("%-5s |  %-5s |  %-5s |  %-5s |  %-5s |  %-5s%n", "P id", "AT", "BT", "CT", "TAT", "WT");
+        for (int i = 0; i < n; i++) {
+            System.out.printf("%-5d |  %-5d |  %-5d |  %-5d |  %-5d |  %-5d%n", (i + 1), AT[i], BT[i], CT[i], TAT[i], WT[i]);
+        }
+    }
+}
+
+//ROUND ROBIN
+import java.util.LinkedList;
+import java.util.Queue;
+
+public class RoundRobin {
+
+    public static void main(String[] args) {
+        // Hardcoded values
+        int n = 5; // Number of processes
+        int quantum = 2; // Time quantum
+
+        int[] pid = {1, 2, 3, 4,5}; // Process IDs
+        int[] at = {0, 1, 2, 3,4}; // Arrival Times
+        int[] bt = {5, 4, 3, 2,1}; // Burst Times
+        int[] ct = new int[n]; // Completion Times
+        int[] wt = new int[n]; // Waiting Times
+        int[] tat = new int[n]; // Turnaround Times
+        int[] remainingBt = new int[n]; // Remaining Burst Times
+
+        // Initialize remaining burst times
+        System.arraycopy(bt, 0, remainingBt, 0, n);
+
+        // Queue to keep track of processes
+        Queue<Integer> queue = new LinkedList<>();
+        int time = 0; // Current time
+        int count = 0; // Count of completed processes
+
+        // Initially add all processes that have arrived at time 0
+        for (int i = 0; i < n; i++) {
+            if (at[i] <= time) {
+                queue.add(i);
+            }
+        }
+
+        while (!queue.isEmpty()) {
+            int i = queue.poll(); // Get the next process from the queue
+
+            if (remainingBt[i] > quantum) {
+                time += quantum;
+                remainingBt[i] -= quantum;
+
+                // Add newly arrived processes to the queue
+                for (int j = 0; j < n; j++) {
+                    if (at[j] > time - quantum && at[j] <= time && !queue.contains(j) && remainingBt[j] > 0) {
+                        queue.add(j);
+                    }
+                }
+
+                queue.add(i); // Re-add the current process to the queue
+            } else {
+                time += remainingBt[i];
+                ct[i] = time;
+                wt[i] = time - bt[i] - at[i];
+                if (wt[i] < 0) {
+                    wt[i] = 0;
+                }
+                remainingBt[i] = 0;
+                count++;
+
+                // Add newly arrived processes to the queue
+                for (int j = 0; j < n; j++) {
+                    if (at[j] > time - remainingBt[i] && at[j] <= time && !queue.contains(j) && remainingBt[j] > 0) {
+                        queue.add(j);
+                    }
+                }
+            }
+        }
+
+        // Calculate Turnaround Time
+        for (int i = 0; i < n; i++) {
+            tat[i] = bt[i] + wt[i];
+        }
+
+        // Display results
+        System.out.println("\nPID  Arrival  Burst  Completion  Waiting  Turnaround");
+        for (int i = 0; i < n; i++) {
+            System.out.println(pid[i] + "\t" + at[i] + "\t" + bt[i] + "\t" + ct[i] + "\t" + wt[i] + "\t" + tat[i]);
+        }
+    }
+}
+
