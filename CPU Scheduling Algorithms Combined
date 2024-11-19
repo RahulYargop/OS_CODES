@@ -1,0 +1,251 @@
+import java.util.*;
+
+public class SchedulingAlgorithms {
+
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+        int choice;
+
+        do {
+            // Display the menu
+            System.out.println("\n=== CPU Scheduling Algorithms ===");
+            System.out.println("1. First Come First Serve (FCFS)");
+            System.out.println("2. Shortest Job First (SJF)");
+            System.out.println("3. Round Robin (RR)");
+            System.out.println("4. Exit");
+            System.out.print("Enter your choice (1-4): ");
+
+            // Get user choice
+            while (!scanner.hasNextInt()) {
+                System.out.print("Invalid input! Please enter a number between 1 and 4: ");
+                scanner.next();
+            }
+            choice = scanner.nextInt();
+
+            // Execute based on user choice
+            switch (choice) {
+                case 1:
+                    fcfs();
+                    break;
+                case 2:
+                    sjf();
+                    break;
+                case 3:
+                    roundRobin();
+                    break;
+                case 4:
+                    System.out.println("Exiting the program. Goodbye!");
+                    break;
+                default:
+                    System.out.println("Invalid choice! Please select a valid option (1-4).");
+            }
+
+        } while (choice != 4);
+
+        scanner.close();
+    }
+
+    /**
+     * First Come First Serve (FCFS) Scheduling Algorithm
+     */
+    public static void fcfs() {
+        int[] AT = {0, 1, 2, 3, 4};
+        int[] BT = {2, 3, 5, 4, 6};
+        int n = AT.length;
+        int[] CT = new int[n];
+        int[] TAT = new int[n];
+        int[] WT = new int[n];
+
+        // Completion Time
+        int buffer = 0;
+        for (int i = 0; i < n; i++) {
+            // If the CPU is idle
+            if (buffer < AT[i]) {
+                buffer = AT[i];
+            }
+            CT[i] = buffer + BT[i];
+            buffer += BT[i];
+        }
+
+        // Turnaround Time and Waiting Time
+        for (int i = 0; i < n; i++) {
+            TAT[i] = CT[i] - AT[i];
+            WT[i] = TAT[i] - BT[i];
+        }
+
+        // Display Results
+        System.out.println("\n--- First Come First Serve (FCFS) ---");
+        System.out.printf("%-5s | %-5s | %-5s | %-5s | %-5s | %-5s%n", "PID", "AT", "BT", "CT", "TAT", "WT");
+        System.out.println("-----------------------------------------------");
+        for (int i = 0; i < n; i++) {
+            System.out.printf("%-5d | %-5d | %-5d | %-5d | %-5d | %-5d%n",
+                    (i + 1), AT[i], BT[i], CT[i], TAT[i], WT[i]);
+        }
+    }
+
+    /**
+     * Shortest Job First (SJF) Scheduling Algorithm
+     */
+    public static void sjf() {
+        int[] AT = {0, 1, 2, 3, 4, 5};
+        int[] BT = {7, 5, 3, 1, 2, 1};
+        int n = AT.length;
+        int[] CT = new int[n];
+        int[] TAT = new int[n];
+        int[] WT = new int[n];
+
+        boolean[] completed = new boolean[n];
+        int currentTime = 0;
+        int completedCount = 0;
+
+        while (completedCount != n) {
+            int minBT = Integer.MAX_VALUE;
+            int index = -1;
+
+            for (int j = 0; j < n; j++) {
+                if (AT[j] <= currentTime && !completed[j] && BT[j] < minBT) {
+                    minBT = BT[j];
+                    index = j;
+                }
+            }
+
+            if (index != -1) {
+                CT[index] = currentTime + BT[index];
+                TAT[index] = CT[index] - AT[index];
+                WT[index] = TAT[index] - BT[index];
+                completed[index] = true;
+                completedCount++;
+                currentTime = CT[index];
+            } else {
+                currentTime++;
+            }
+        }
+
+        // Display Results
+        System.out.println("\n--- Shortest Job First (SJF) ---");
+        System.out.printf("%-5s | %-5s | %-5s | %-5s | %-5s | %-5s%n", "PID", "AT", "BT", "CT", "TAT", "WT");
+        System.out.println("-----------------------------------------------");
+        for (int i = 0; i < n; i++) {
+            System.out.printf("%-5d | %-5d | %-5d | %-5d | %-5d | %-5d%n",
+                    (i + 1), AT[i], BT[i], CT[i], TAT[i], WT[i]);
+        }
+    }
+
+    /**
+     * Round Robin (RR) Scheduling Algorithm
+     */
+    public static void roundRobin() {
+        Scanner scanner = new Scanner(System.in);
+        int n = 5; // Number of processes
+        int quantum;
+    
+        // Define Process IDs, Arrival Times, and Burst Times
+        int[] pid = {1, 2, 3, 4, 5};
+        int[] at = {0, 1, 2, 3, 4};
+        int[] bt = {5, 4, 3, 2, 1};
+        int[] ct = new int[n]; // Completion Times
+        int[] wt = new int[n]; // Waiting Times
+        int[] tat = new int[n]; // Turnaround Times
+        int[] remainingBt = new int[n]; // Remaining Burst Times
+        boolean[] completed = new boolean[n]; // Tracks whether a process is completed
+    
+        // Initialize remaining burst times and completed array
+        System.arraycopy(bt, 0, remainingBt, 0, n);
+        Arrays.fill(completed, false);
+    
+        // Get Quantum Time from User
+        System.out.print("Enter the Time Quantum: ");
+        while (!scanner.hasNextInt()) {
+            System.out.print("Invalid input! Please enter a positive integer for the time quantum: ");
+            scanner.next();
+        }
+        quantum = scanner.nextInt();
+        if (quantum <= 0) {
+            System.out.println("Time quantum must be a positive integer. Setting quantum to 1.");
+            quantum = 1;
+        }
+    
+        // Queue to keep track of processes
+        Queue<Integer> queue = new LinkedList<>();
+        int time = 0; // Current time
+        int completedCount = 0; // Count of completed processes
+        boolean[] inQueue = new boolean[n]; // To avoid multiple entries in the queue
+    
+        // Initially add all processes that have arrived at time 0
+        for (int i = 0; i < n; i++) {
+            if (at[i] <= time) {
+                queue.add(i);
+                inQueue[i] = true;
+            }
+        }
+    
+        while (completedCount != n) {
+            if (queue.isEmpty()) {
+                // If no process is in the queue, advance time to the next arrival
+                int nextArrival = Integer.MAX_VALUE;
+                for (int i = 0; i < n; i++) {
+                    if (!completed[i] && at[i] < nextArrival) {
+                        nextArrival = at[i];
+                    }
+                }
+                time = nextArrival;
+                for (int i = 0; i < n; i++) {
+                    if (at[i] <= time && !completed[i] && !inQueue[i]) {
+                        queue.add(i);
+                        inQueue[i] = true;
+                    }
+                }
+            }
+    
+            int i = queue.poll();
+            inQueue[i] = false;
+    
+            if (remainingBt[i] > quantum) {
+                time += quantum;
+                remainingBt[i] -= quantum;
+    
+                // Add newly arrived processes to the queue
+                for (int j = 0; j < n; j++) {
+                    if (at[j] <= time && !completed[j] && !inQueue[j]) {
+                        queue.add(j);
+                        inQueue[j] = true;
+                    }
+                }
+    
+                // Re-add the current process to the queue
+                queue.add(i);
+                inQueue[i] = true;
+            } else {
+                time += remainingBt[i];
+                ct[i] = time;
+                tat[i] = ct[i] - at[i];
+                wt[i] = tat[i] - bt[i];
+                if (wt[i] < 0) {
+                    wt[i] = 0;
+                }
+                remainingBt[i] = 0;
+                completed[i] = true;
+                completedCount++;
+    
+                // Add newly arrived processes to the queue
+                for (int j = 0; j < n; j++) {
+                    if (at[j] <= time && !completed[j] && !inQueue[j]) {
+                        queue.add(j);
+                        inQueue[j] = true;
+                    }
+                }
+            }
+        }
+    
+        // Display Results
+        System.out.println("\n--- Round Robin (RR) ---");
+        System.out.printf("%-5s | %-5s | %-5s | %-5s | %-5s | %-5s%n", "PID", "AT", "BT", "CT", "TAT", "WT");
+        System.out.println("-----------------------------------------------");
+        for (int i = 0; i < n; i++) {
+            System.out.printf("%-5d | %-5d | %-5d | %-5d | %-5d | %-5d%n",
+                    pid[i], at[i], bt[i], ct[i], tat[i], wt[i]);
+        }
+    }
+}
+
+    
